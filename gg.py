@@ -4,10 +4,9 @@ import time as tm
 FPS = 300
 win_width = 800
 win_height = 700
-max_attempts = 3  # Максимальное количество попыток
-serdec = max_attempts  # Изначальное количество сердец
+serdec = 3  # Изначальное количество сердец
 window = display.set_mode((win_width, win_height))
-display.set_caption("Labirynth")
+display.set_caption("Maze")
 clock = time.Clock()
 mixer.init()
 mixer.music.load('music/muz.mp3')
@@ -36,29 +35,43 @@ class GameSprite(sprite.Sprite):
     def update(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
-
 class Player(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
         super().__init__(player_image, player_x, player_y, player_speed)
 
     def reset(self):
         keys = key.get_pressed()
+
         if keys[K_RIGHT] and self.rect.x + 70 < win_width:
-            if sprite.collide_rect(player, w1) == False and sprite.collide_rect(player, w2) == False:
+            if not sprite.collide_rect(self, w1) and not sprite.collide_rect(self, w2):
                 self.rect.x += self.speed
                 if self.right == False:
                     self.image = transform.scale(image.load(player_image2), (65, 65))
                 self.right = True
+
         elif keys[K_LEFT] and self.rect.x > 0:
-            if sprite.collide_rect(player, w1) == False and sprite.collide_rect(player, w2) == False:
+            if not sprite.collide_rect(self, w1) and not sprite.collide_rect(self, w2):
                 self.rect.x -= self.speed
                 if self.right == True:
                     self.image = transform.scale(image.load(player_image), (65, 65))
                 self.right = False
+
         elif keys[K_DOWN] and self.rect.y + 70 < win_height:
             self.rect.y += self.speed
         elif keys[K_UP] and self.rect.y > 0:
             self.rect.y -= self.speed
+
+        if sprite.collide_rect(self, w1) and self.right: # Если игрок касается стенки при движении вправо, возвращаем его на шаг назад
+            self.rect.x -= self.speed
+        elif sprite.collide_rect(self, w2) and self.right:
+            self.rect.x -= self.speed
+
+        if sprite.collide_rect(self, w1) and not self.right:        # Если игрок касается стенки при движении влево, возвращаем его на шаг назад
+            self.rect.x += self.speed
+        elif sprite.collide_rect(self, w2) and not self.right:
+            self.rect.x += self.speed
+
+
 
 
 class Enemy(GameSprite):
@@ -67,7 +80,7 @@ class Enemy(GameSprite):
         self.motion = "left"
 
     def reset(self):
-        if self.rect.x < self.gram_min:
+        if self.rect.x < self.gram_min-20:
             self.motion = "right"
         elif self.rect.x > self.gram_max - 70:
             self.motion = "left"
@@ -84,7 +97,7 @@ class Wall(sprite.Sprite):
         self.col2 = col2
         self.col3 = col3
         self.image = Surface((win_h, win_w))
-        self.image.fill((255, 0, 0))
+        self.image.fill((255,230,128))
         self.rect = self.image.get_rect()
         self.rect.x = wall_x
         self.rect.y = wall_y
@@ -100,7 +113,7 @@ class Wall2(sprite.Sprite):
         self.col2 = col2
         self.col3 = col3
         self.image = Surface((win_h, win_w))
-        self.image.fill((50, 100, 10))
+        self.image.fill((255, 230, 128))
         self.rect = self.image.get_rect()
         self.rect.x = wall_x
         self.rect.y = wall_y
@@ -112,15 +125,17 @@ class Wall2(sprite.Sprite):
 player = Player(player_image, 50, 50, 1)
 enemy = Enemy('img/enemu.jfif', 70, 150, 1, 0, 235)
 enemy2 = Enemy('img/enemu.jfif', 300, 300, 1, 300, 500)
-gold = GameSprite('img/konec.png', 900, 700, 2)
+gold = GameSprite('img/star.png', 600, 500, 0, 70,70)
 g = win_height - 100
-w1 = Wall(25, g, 0, 2, 150, 500, 100)
-w2 = Wall2(25, g, 0, 0, 50, 250, 1)
+w1 = Wall(25, g, 248, 151, 28, 500, 100)
+w2 = Wall2(25, g, 248, 151, 28, 250, 1)
+heart_image = transform.scale(image.load('img/serdce.jpg'), (win_width // 5, win_height // 5))
+
 
 game = True
 while game and serdec > 0:
     window.blit(background, (0, 0))
-    text = font.render('Жизней : ' + str(serdec), True, (255, 0, 255))
+    text = font.render('Жизней : ' + str(serdec), True, (248, 151, 28))
     window.blit(text, (5, 5))
     w1.update()
     w2.update()
@@ -133,10 +148,13 @@ while game and serdec > 0:
     gold.update()
     display.update()
 
-    if sprite.collide_rect(player, enemy):
+    if sprite.collide_rect(player, enemy): 
         serdec -= 1
-        tm.sleep(1)
-        # Перезапуск игры
+        window.blit(heart_image, (win_width // 7-100, win_height // 7+400))     
+        text = font.render(f'У вас снята 1 жизнь, количество жизней: {serdec}', True, (248,151,28))
+        window.blit(text, (win_width // 2-400, win_height // 2+300 ))
+        display.update()
+        tm.sleep(2)    # Перезапуск игры
         player.rect.x = 50
         player.rect.y = 50
         enemy.rect.x = 70
@@ -144,29 +162,35 @@ while game and serdec > 0:
 
     if sprite.collide_rect(player, enemy2):
         serdec -= 1
-        tm.sleep(1)
-        # Перезапуск игры
+        window.blit(heart_image, (win_width // 7-100, win_height // 7+400))     
+        text = font.render(f'У вас снята 1 жизнь, количество жизней: {serdec}', True, (248,151,28))
+        window.blit(text, (win_width // 2-400, win_height // 2+300 ))
+        display.update()
+        tm.sleep(2)        # Перезапуск игры
         player.rect.x = 50
         player.rect.y = 50
         enemy2.rect.x = 300
         enemy2.rect.y = 300
 
     if sprite.collide_rect(player, gold):
-        img = transform.scale(image.load('img/youwin.jpg'), (win_width // 2, win_height // 2))
+        imaage = transform.scale(image.load('img/youwin.jpg'), (win_width // 2, win_height // 2))
         window.fill((255, 255, 255))
-        window.blit(img, (win_width // 4, win_height // 4))
+        window.blit(imaage, (win_width // 4, win_height // 4))
         display.update()
-        tm.sleep(1)
+        tm.sleep(2)
+        game = False
 
+    if serdec == 0:
+        img = transform.scale(image.load('img/gameover.png'), (win_width // 2, win_height // 2))
+        window.fill((255, 255, 255))
+        window.blit(img, (win_width // 4, win_height // 4))   
+        game = False  
+    
     for i in event.get():
         if i.type == QUIT:
             game = False
 
     clock.tick(FPS)
 
-# Завершение игры
-img = transform.scale(image.load('img/gameover.png'), (win_width // 2, win_height // 2))
-window.fill((255, 255, 255))
-window.blit(img, (win_width // 4, win_height // 4))
 display.update()
-tm.sleep(1)
+tm.sleep(2)
